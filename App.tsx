@@ -73,7 +73,7 @@ const App: React.FC = () => {
             className="fixed inset-0 z-[2000] bg-black flex items-center justify-center font-mono p-10"
           >
             <div className="text-cyan-400 text-lg md:text-xl">
-              <span className="opacity-50 mr-2">>></span>
+              <span className="opacity-50 mr-2">{" >> "}</span>
               {bootText}
               <motion.span 
                 animate={{ opacity: [0, 1] }} 
