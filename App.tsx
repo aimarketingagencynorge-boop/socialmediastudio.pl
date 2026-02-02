@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
-import { Starfield } from './components/Starfield';
-import { HUD } from './components/HUD';
-import { HomePage } from './components/Sections';
-import { SubpageManager } from './components/Subpages';
-import { Crosshair } from './components/Crosshair';
-import { JedAIHologram } from './components/JedAI';
+import { Starfield } from './components/Starfield.tsx';
+import { HUD } from './components/HUD.tsx';
+import { HomePage } from './components/Sections.tsx';
+import { SubpageManager } from './components/Subpages.tsx';
+import { Crosshair } from './components/Crosshair.tsx';
+import { JedAIHologram } from './components/JedAI.tsx';
 
 export type PageId = 'home' | 'co-robimy' | 'webfabrikk' | 'geneza' | 'dlaczego' | 'wspolpraca';
 
