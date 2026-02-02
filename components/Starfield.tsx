@@ -4,14 +4,12 @@ import * as THREE from 'three';
 import { MotionValue } from 'framer-motion';
 
 interface StarfieldProps {
-  intensity: number; // 0 for normal, higher for warp-gate
+  intensity: number;
   progress: MotionValue<number>;
 }
 
 export const Starfield: React.FC<StarfieldProps> = ({ intensity, progress }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const lastProgress = useRef(0);
-  const velocity = useRef(0);
   
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -25,46 +23,88 @@ export const Starfield: React.FC<StarfieldProps> = ({ intensity, progress }) => 
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
 
-    // Stars as Line Segments for Stretching Effect
-    const starsCount = 4000;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(starsCount * 6); // Line segments (start and end)
-    const baseSpeeds = new Float32Array(starsCount);
-    
-    for (let i = 0; i < starsCount; i++) {
-      const x = (Math.random() - 0.5) * 100;
-      const y = (Math.random() - 0.5) * 100;
-      const z = -Math.random() * 150;
-      
-      const i6 = i * 6;
-      positions[i6] = x;
-      positions[i6 + 1] = y;
-      positions[i6 + 2] = z;
-      positions[i6 + 3] = x;
-      positions[i6 + 4] = y;
-      positions[i6 + 5] = z; // End starts at same point
+    // Helpers to create iconic shapes
+    const createXWing = () => {
+      const group = new THREE.Group();
+      const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 2), material);
+      group.add(body);
+      const wingGeom = new THREE.BoxGeometry(1.5, 0.05, 0.6);
+      const w1 = new THREE.Mesh(wingGeom, material);
+      w1.rotation.z = Math.PI / 5;
+      group.add(w1);
+      const w2 = new THREE.Mesh(wingGeom, material);
+      w2.rotation.z = -Math.PI / 5;
+      group.add(w2);
+      return group;
+    };
 
-      baseSpeeds[i] = 0.1 + Math.random() * 0.5;
+    const createTieFighter = () => {
+      const group = new THREE.Group();
+      const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), material);
+      group.add(ball);
+      const wingGeom = new THREE.BoxGeometry(0.05, 1.5, 1.2);
+      const w1 = new THREE.Mesh(wingGeom, material);
+      w1.position.x = 0.6;
+      group.add(w1);
+      const w2 = new THREE.Mesh(wingGeom, material);
+      w2.position.x = -0.6;
+      group.add(w2);
+      return group;
+    };
+
+    // Star System
+    const starsCount = 6000;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(starsCount * 3);
+    const velocities = new Float32Array(starsCount);
+    
+    for (let i = 0; i < starsCount * 3; i += 3) {
+      positions[i] = (Math.random() - 0.5) * 80;
+      positions[i + 1] = (Math.random() - 0.5) * 80;
+      positions[i + 2] = -Math.random() * 100;
+      velocities[i/3] = 0.05 + Math.random() * 0.2;
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const starMaterial = new THREE.LineBasicMaterial({
+    const starMaterial = new THREE.PointsMaterial({
+      size: 0.1,
       color: 0x88ffff,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.8,
       blending: THREE.AdditiveBlending,
     });
-    const starLines = new THREE.LineSegments(geometry, starMaterial);
-    scene.add(starLines);
+    const starPoints = new THREE.Points(geometry, starMaterial);
+    scene.add(starPoints);
 
-    // Planet & Ships logic from before
+    // Floating Planet
     const planetGroup = new THREE.Group();
-    const planetGeom = new THREE.SphereGeometry(8, 32, 32);
-    const planetMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.1 });
+    const planetGeom = new THREE.SphereGeometry(6, 48, 48);
+    const planetMat = new THREE.MeshBasicMaterial({ 
+      color: 0x00ffff, 
+      wireframe: true,
+      transparent: true,
+      opacity: 0.15 
+    });
     const planet = new THREE.Mesh(planetGeom, planetMat);
     planetGroup.add(planet);
-    planetGroup.position.set(20, -15, -150);
+    planetGroup.position.set(15, -10, -120);
     scene.add(planetGroup);
+
+    // Recognizable Ships
+    const ships: { group: THREE.Group, offset: number, orbit: number }[] = [];
+    for (let i = 0; i < 4; i++) {
+      const shipGroup = i % 2 === 0 ? createXWing() : createTieFighter();
+      const shipData = {
+        group: shipGroup,
+        offset: Math.random() * 100,
+        orbit: 10 + Math.random() * 20
+      };
+      shipGroup.position.set((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 20, -100 - i * 40);
+      scene.add(shipGroup);
+      ships.push(shipData);
+    }
 
     camera.position.z = 5;
 
@@ -72,42 +112,41 @@ export const Starfield: React.FC<StarfieldProps> = ({ intensity, progress }) => 
     const animate = () => {
       frame = requestAnimationFrame(animate);
 
-      // Calculate Scroll Velocity
-      const currentP = progress.get();
-      const delta = Math.abs(currentP - lastProgress.current);
-      velocity.current = THREE.MathUtils.lerp(velocity.current, delta * 50, 0.1);
-      lastProgress.current = currentP;
+      const p = progress.get();
+      const posAttr = starPoints.geometry.attributes.position.array as Float32Array;
+      const speed = 0.2 + (intensity * 4) + (p * 2);
 
-      const effectiveSpeed = 0.1 + velocity.current + (intensity * 5);
-      const stretch = Math.min(effectiveSpeed * 2, 8); // How much stars stretch
-
-      const posAttr = starLines.geometry.attributes.position.array as Float32Array;
+      starMaterial.size = 0.1 + intensity * 0.2;
       
       for (let i = 0; i < starsCount; i++) {
-        const i6 = i * 6;
-        const zPos = posAttr[i6 + 2];
-        const moveSpeed = baseSpeeds[i] * (1 + velocity.current * 10);
-        
-        // Update both points of the line segment
-        posAttr[i6 + 2] += moveSpeed;
-        posAttr[i6 + 5] = posAttr[i6 + 2] - stretch; // The tail
-
-        if (posAttr[i6 + 2] > 10) {
-          posAttr[i6 + 2] = -150;
-          posAttr[i6 + 5] = -150;
-          posAttr[i6] = posAttr[i6 + 3] = (Math.random() - 0.5) * 100;
-          posAttr[i6 + 1] = posAttr[i6 + 4] = (Math.random() - 0.5) * 100;
+        const i3 = i * 3;
+        posAttr[i3 + 2] += velocities[i] * speed;
+        if (posAttr[i3 + 2] > 5) {
+          posAttr[i3 + 2] = -100;
+          posAttr[i3] = (Math.random() - 0.5) * 80;
+          posAttr[i3 + 1] = (Math.random() - 0.5) * 80;
         }
       }
-      starLines.geometry.attributes.position.needsUpdate = true;
+      starPoints.geometry.attributes.position.needsUpdate = true;
 
-      // Camera Dynamic FOV
-      camera.fov = 75 + (velocity.current * 20);
-      camera.updateProjectionMatrix();
+      planetGroup.position.z = -120 + p * 150;
+      planet.rotation.y += 0.002;
+      planetMat.opacity = 0.1 + p * 0.2;
 
-      planetGroup.position.z = -150 + (currentP * 180);
-      planet.rotation.y += 0.001;
-      
+      ships.forEach((shipData, idx) => {
+        const ship = shipData.group;
+        ship.position.z += speed * 0.9;
+        // Subtle banking/swerving motion
+        ship.position.x += Math.sin(Date.now() * 0.001 + idx) * 0.02;
+        ship.rotation.z = Math.sin(Date.now() * 0.001 + idx) * 0.1;
+
+        if (ship.position.z > 10) {
+          ship.position.z = -200;
+          ship.position.x = (Math.random() - 0.5) * 60;
+          ship.position.y = (Math.random() - 0.5) * 30;
+        }
+      });
+
       renderer.render(scene, camera);
     };
 
@@ -123,22 +162,16 @@ export const Starfield: React.FC<StarfieldProps> = ({ intensity, progress }) => 
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', handleResize);
     };
-  }, [intensity]); // Added intensity to deps to reset if needed
+  }, []);
 
   return (
-    <>
-      <canvas 
-        ref={canvasRef} 
-        className="w-full h-full fixed inset-0"
-        style={{ 
-          filter: intensity > 0.5 ? `blur(${intensity * 2}px) brightness(1.5)` : 'none',
-        }}
-      />
-      {/* Cockpit Glass Overlay */}
-      <div className="fixed inset-0 pointer-events-none z-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] opacity-60" />
-      <div className="fixed inset-0 pointer-events-none z-0 mix-blend-screen opacity-10">
-         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30" />
-      </div>
-    </>
+    <canvas 
+      ref={canvasRef} 
+      className="w-full h-full fixed inset-0"
+      style={{ 
+        filter: intensity > 0.5 ? `blur(${intensity * 1.5}px) contrast(1.2)` : 'none',
+        transition: 'filter 0.1s ease-out'
+      }}
+    />
   );
 };

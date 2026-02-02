@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useScroll, useSpring, useTransform, useVelocity } from 'framer-motion';
-import { Starfield } from './components/Starfield.tsx';
-import { HUD } from './components/HUD.tsx';
-import { HomePage } from './components/Sections.tsx';
-import { SubpageManager } from './components/Subpages.tsx';
-import { Crosshair } from './components/Crosshair.tsx';
-import { JedAIHologram } from './components/JedAI.tsx';
+import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
+import { Starfield } from './components/Starfield';
+import { HUD } from './components/HUD';
+import { HomePage } from './components/Sections';
+import { SubpageManager } from './components/Subpages';
+import { Crosshair } from './components/Crosshair';
+import { JedAIHologram } from './components/JedAI';
 
 export type PageId = 'home' | 'co-robimy' | 'webfabrikk' | 'geneza' | 'dlaczego' | 'wspolpraca';
 
@@ -60,21 +60,9 @@ const App: React.FC = () => {
 
   // Scroll dynamics for ambient shake
   const { scrollYProgress } = useScroll();
-  const scrollVelocity = useVelocity(scrollYProgress);
   const smoothProgress = useSpring(scrollYProgress, { stiffness: 80, damping: 25 });
-  
-  // Shake intensity depends on both warping state AND scroll velocity
-  const shakeX = useTransform(smoothProgress, p => {
-    const v = Math.abs(scrollVelocity.get()) * 50;
-    const base = Math.sin(p * 200) * (isWarping ? 15 : 1);
-    return base * (1 + v);
-  });
-  
-  const shakeY = useTransform(smoothProgress, p => {
-    const v = Math.abs(scrollVelocity.get()) * 50;
-    const base = Math.cos(p * 200) * (isWarping ? 15 : 1);
-    return base * (1 + v);
-  });
+  const shakeX = useTransform(smoothProgress, p => Math.sin(p * 100) * (isWarping ? 15 : 1));
+  const shakeY = useTransform(smoothProgress, p => Math.cos(p * 100) * (isWarping ? 15 : 1));
 
   return (
     <div ref={containerRef} className="relative w-full bg-[#0A0A12] min-h-screen">
@@ -100,12 +88,6 @@ const App: React.FC = () => {
       {/* Cosmic Engine */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <Starfield intensity={warpLevel} progress={smoothProgress} />
-      </div>
-
-      {/* Cockpit Frame Overlays (Visual Foundations) */}
-      <div className="fixed inset-0 pointer-events-none z-[40] opacity-40">
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-black to-transparent" />
-        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-black to-transparent" />
       </div>
 
       {/* Content Wrapper */}
